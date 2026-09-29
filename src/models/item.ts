@@ -9,10 +9,13 @@ export interface Item {
   condition: ItemCondition;
   images: string[];
   status: ItemStatus;
+  occupied_by_exchange_id?: string;
+  version: number;
   location: string;
   created_at: string;
 }
 
-export type ItemDraft = Omit<Item, 'id' | 'status' | 'created_at'> & {
+export type ItemDraft = Omit<Item, 'id' | 'status' | 'version' | 'created_at'> & {
   status?: ItemStatus;
+  version?: number;
 };

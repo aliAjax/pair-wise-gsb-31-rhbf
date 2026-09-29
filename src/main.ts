@@ -5,9 +5,9 @@ import { createPinia } from 'pinia';
 import { createApp } from 'vue';
 
 import App from './App.vue';
+import { bootstrapLocalData } from './api/bootstrap';
 import router from './router';
-import { storage } from './utils/storage';
 
-void storage.cleanExpired();
-
-createApp(App).use(createPinia()).use(router).mount('#app');
+bootstrapLocalData().then(() => {
+  createApp(App).use(createPinia()).use(router).mount('#app');
+});

@@ -6,14 +6,25 @@
       </span>
       <small>{{ formatDate(exchange.updated_at) }}</small>
     </header>
+    <div v-if="exchange.conflict_result" class="conflict-banner">
+      <strong>冲突结果</strong>
+      <p>{{ exchange.conflict_result.message }}</p>
+      <small v-if="exchange.conflict_result.winner_exchange_id">
+        生效交换：{{ exchange.conflict_result.winner_exchange_id }}
+      </small>
+    </div>
     <div class="exchange-card__items">
       <div>
         <span>拿出</span>
         <strong>{{ fromItem?.title ?? '未知物品' }}</strong>
+        <small v-if="occupantOf(fromItem)">占用对象：{{ occupantLabel(occupantOf(fromItem)) }}</small>
+        <small v-else-if="fromItem">v{{ fromItem.version }} · 当前未占用</small>
       </div>
       <div>
         <span>换取</span>
         <strong>{{ toItem?.title ?? '未知物品' }}</strong>
+        <small v-if="occupantOf(toItem)">占用对象：{{ occupantLabel(occupantOf(toItem)) }}</small>
+        <small v-else-if="toItem">v{{ toItem.version }} · 当前未占用</small>
       </div>
     </div>
     <p>{{ exchange.message || formatStatusMessage(exchange.status) }}</p>
@@ -48,6 +59,7 @@ const props = defineProps<{
   exchange: Exchange;
   items: Item[];
   users: User[];
+  exchanges: Exchange[];
 }>();
 
 defineEmits<{
@@ -66,4 +78,15 @@ const canOperate = computed(
     authStore.currentUser?.id === props.exchange.to_user_id ||
     (authStore.currentUser?.id === props.exchange.from_user_id && props.exchange.status === ExchangeStatus.ACCEPTED),
 );
+
+const occupantOf = (item: Item | undefined) => {
+  if (!item?.occupied_by_exchange_id) return undefined;
+  return props.exchanges.find((entry) => entry.id === item.occupied_by_exchange_id);
+};
+
+const occupantLabel = (occupant: Exchange | undefined) => {
+  if (!occupant) return '';
+  if (occupant.id === props.exchange.id) return '本交换';
+  return `${occupant.id} · ${formatExchangeStatus(occupant.status)}`;
+};
 </script>

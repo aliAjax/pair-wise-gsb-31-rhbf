@@ -2,8 +2,12 @@ import { defineStore } from 'pinia';
 
 import { exchangeApi } from '@/api/exchangeApi';
 import { ExchangeStatus } from '@/constants/exchange';
+import { FORM_MESSAGES } from '@/constants/messages';
 import type { Exchange, ExchangeDraft } from '@/models/exchange';
+import { itemApi } from '@/api/itemApi';
 import { message } from '@/utils/message';
+
+import { useItemStore } from './itemStore';
 
 export const useExchangeStore = defineStore('exchanges', {
   state: () => ({
@@ -28,26 +32,76 @@ export const useExchangeStore = defineStore('exchanges', {
         this.loading = false;
       }
     },
-    async create(draft: ExchangeDraft) {
-      const exchange = await exchangeApi.create({ ...draft, status: ExchangeStatus.PENDING });
-      this.exchanges = await exchangeApi.list();
-      message('交换请求已发出', 'success');
-      return exchange;
+    async refreshLinkedItems() {
+      const itemStore = useItemStore();
+      itemStore.items = await itemApi.list();
     },
-    async accept(id: string) {
-      await exchangeApi.transition(id, ExchangeStatus.ACCEPTED);
-      this.exchanges = await exchangeApi.list();
-      message('已同意交换', 'success');
+    async create(draft: ExchangeDraft) {
+      try {
+        const exchange = await exchangeApi.create({ ...draft, status: ExchangeStatus.PENDING });
+        this.exchanges = await exchangeApi.list();
+        await this.refreshLinkedItems();
+        message('交换请求已发出', 'success');
+        return exchange;
+      } catch (error) {
+        message(error instanceof Error ? error.message : '交换请求创建失败', 'error');
+        return null;
+      }
+    },
+    async accept(exchangeOrId: Exchange | string) {
+      const id = typeof exchangeOrId === 'string' ? exchangeOrId : exchangeOrId.id;
+      const current = this.exchanges.find((item) => item.id === id);
+      if (!current) return;
+      try {
+        const result = await exchangeApi.transition(id, ExchangeStatus.ACCEPTED, {
+          expectedExchangeVersion: current.version,
+        });
+        this.exchanges = await exchangeApi.list();
+        await this.refreshLinkedItems();
+        if (result.status === ExchangeStatus.CONFLICTED) {
+          message(result.conflict_result?.message ?? FORM_MESSAGES.exchangeConflict, 'error');
+        } else {
+          message('已同意交换，双方物品已进入占用', 'success');
+        }
+      } catch (error) {
+        this.exchanges = await exchangeApi.list();
+        await this.refreshLinkedItems();
+        message(error instanceof Error ? error.message : FORM_MESSAGES.itemVersionChanged, 'error');
+      }
     },
     async reject(id: string) {
-      await exchangeApi.transition(id, ExchangeStatus.REJECTED);
-      this.exchanges = await exchangeApi.list();
-      message('已拒绝交换', 'success');
+      const current = this.exchanges.find((item) => item.id === id);
+      try {
+        await exchangeApi.transition(id, ExchangeStatus.REJECTED, {
+          expectedExchangeVersion: current?.version,
+        });
+        this.exchanges = await exchangeApi.list();
+        message('已拒绝交换', 'success');
+      } catch (error) {
+        this.exchanges = await exchangeApi.list();
+        message(error instanceof Error ? error.message : '交换记录已变化，请刷新后重试', 'error');
+      }
     },
-    async complete(id: string) {
-      await exchangeApi.transition(id, ExchangeStatus.COMPLETED);
-      this.exchanges = await exchangeApi.list();
-      message('交换已完成，双方物品状态已更新', 'success');
+    async complete(exchangeOrId: Exchange | string) {
+      const id = typeof exchangeOrId === 'string' ? exchangeOrId : exchangeOrId.id;
+      const current = this.exchanges.find((item) => item.id === id);
+      if (!current) return;
+      try {
+        const result = await exchangeApi.transition(id, ExchangeStatus.COMPLETED, {
+          expectedExchangeVersion: current.version,
+        });
+        this.exchanges = await exchangeApi.list();
+        await this.refreshLinkedItems();
+        if (result.status === ExchangeStatus.CONFLICTED) {
+          message(result.conflict_result?.message ?? FORM_MESSAGES.exchangeConflict, 'error');
+        } else {
+          message('交换已完成，双方物品状态已更新', 'success');
+        }
+      } catch (error) {
+        this.exchanges = await exchangeApi.list();
+        await this.refreshLinkedItems();
+        message(error instanceof Error ? error.message : FORM_MESSAGES.itemVersionChanged, 'error');
+      }
     },
   },
 });

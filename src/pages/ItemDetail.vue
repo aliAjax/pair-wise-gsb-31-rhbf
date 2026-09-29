@@ -28,6 +28,19 @@
         </dl>
         <UserBrief v-if="owner" :user="owner" />
 
+        <div v-if="occupantExchange" class="occupancy-panel">
+          <strong>占用对象</strong>
+          <p>{{ occupantPeer?.nickname ?? '未知用户' }} · {{ occupantOtherItem?.title ?? '未知物品' }}</p>
+          <small>交换记录：{{ occupantExchange.id }} · {{ formatExchangeStatus(occupantExchange.status) }}</small>
+          <small v-if="occupantExchange.conflict_result">
+            冲突结果：{{ occupantExchange.conflict_result.message }}
+          </small>
+        </div>
+        <div v-else class="occupancy-panel occupancy-panel--free">
+          <strong>占用状态</strong>
+          <p>当前没有有效交换占用 · v{{ item.version }}</p>
+        </div>
+
         <div v-if="!isMine" class="exchange-box">
           <label>
             我的交换物
@@ -67,7 +80,7 @@ import { ItemStatus } from '@/constants/item';
 import { useAuthStore } from '@/stores/authStore';
 import { useExchangeStore } from '@/stores/exchangeStore';
 import { useItemStore } from '@/stores/itemStore';
-import { formatCondition, formatDate, formatItemStatus, statusToneClass } from '@/utils/formatters';
+import { formatCondition, formatDate, formatExchangeStatus, formatItemStatus, statusToneClass } from '@/utils/formatters';
 import { message } from '@/utils/message';
 
 const route = useRoute();
@@ -81,6 +94,24 @@ const isMine = computed(() => authStore.currentUser?.id === item.value?.user_id)
 const ownAvailableItems = computed(() =>
   authStore.currentUser ? itemStore.availableMyItems(authStore.currentUser.id) : [],
 );
+const occupantExchange = computed(() =>
+  item.value?.occupied_by_exchange_id
+    ? exchangeStore.exchanges.find((exchange) => exchange.id === item.value?.occupied_by_exchange_id)
+    : undefined,
+);
+const occupantOtherItem = computed(() => {
+  if (!item.value || !occupantExchange.value) return undefined;
+  const otherId =
+    occupantExchange.value.from_item_id === item.value.id
+      ? occupantExchange.value.to_item_id
+      : occupantExchange.value.from_item_id;
+  return itemStore.items.find((entry) => entry.id === otherId);
+});
+const occupantPeer = computed(() =>
+  occupantOtherItem.value
+    ? authStore.users.find((user) => user.id === occupantOtherItem.value?.user_id)
+    : undefined,
+);
 const selectedItemId = ref('');
 const messageText = ref('我想用这件闲置与你交换，可以沟通时间和地点。');
 
@@ -91,7 +122,7 @@ const requestExchange = async () => {
     message('请选择一件自己的物品', 'error');
     return;
   }
-  await exchangeStore.create({
+  const exchange = await exchangeStore.create({
     from_user_id: authStore.currentUser.id,
     to_user_id: owner.value.id,
     from_item_id: selectedItemId.value,
@@ -99,6 +130,8 @@ const requestExchange = async () => {
     status: ExchangeStatus.PENDING,
     message: messageText.value,
   });
+  if (!exchange) return;
+  selectedItemId.value = '';
 };
 
 const offlineItem = async () => {

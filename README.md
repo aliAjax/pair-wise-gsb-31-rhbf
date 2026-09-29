@@ -16,7 +16,8 @@ ReSwap 是一个纯前端以物换物 Web 应用。用户可以本地模拟登�
 - 首页瀑布流浏览、分类筛选、关键词搜索。
 - 物品详情、物主资料、选择自己的物品发起交换。
 - 发布物品，支持本地 base64 图片上传、分类和成色选择。
-- 交换管理，区分我发起的和我收到的请求，支持同意、拒绝、完成。
+- 交换管理，区分我发起的和我收到的请求，支持同意、拒绝、完成和冲突失效标记。
+- 本机事务：同意/完成交换时使用版本号、占用校验、Web Locks 与事务日志；重开浏览器会自动提交或回滚中断事务。
 - 个人中心，编辑资料、上传头像、查看我发布的物品。
 - 主题切换、全局错误处理和 Vant 提示。
 
@@ -49,7 +50,7 @@ pnpm build
 
 ```text
 src/
-├── api/              # userApi.ts, itemApi.ts, exchangeApi.ts：本地数据 API 层
+├── api/              # userApi.ts, itemApi.ts, exchangeApi.ts, bootstrap.ts：本地数据 API 与启动迁移
 ├── stores/           # authStore.ts, itemStore.ts, exchangeStore.ts, themeStore.ts
 ├── models/           # user.ts, item.ts, exchange.ts：独立数据模型
 ├── types/            # 共享类型补充
@@ -70,6 +71,8 @@ src/
 - 所有 `api/*Api.ts` 通过 `storage.ts` 读写数据，不在组件里直接写业务数据。
 - 存储层包含序列化、版本号、过期清理、存储 key 管理。
 - 首次启动会写入演示用户、物品和交换请求。
+- 旧物品/交换记录缺少 `version`、占用对象或冲突结果时，会在启动阶段通过同一本机事务迁移补齐。
+- `reswap:transaction-journal` 保存两阶段本机事务日志；浏览器重开时先恢复日志，再加载业务数据。
 
 ## 横切关注点
 
@@ -80,10 +83,11 @@ src/
 
 ### ItemStatus
 
-定义位置：`src/constants/item.ts`
+定义位置：`src/constants/item.ts`，值：`available`、`booked`、`exchanged`、`offline`。
 
 出现位置：
 
+- `src/api/bootstrap.ts`
 - `src/models/item.ts`
 - `src/constants/messages.ts`
 - `src/api/itemApi.ts`
@@ -95,14 +99,17 @@ src/
 - `src/pages/ItemDetail.vue`
 - `src/pages/Publish.vue`
 - `src/pages/Profile.vue`
+- `src/types/index.ts`
+- `src/utils/storage.ts`
 
 ### ExchangeStatus
 
-定义位置：`src/constants/exchange.ts`
+定义位置：`src/constants/exchange.ts`，值：`pending`、`accepted`、`rejected`、`completed`、`conflicted`。
 
 出现位置：
 
 - `src/models/exchange.ts`
+- `src/api/bootstrap.ts`
 - `src/constants/messages.ts`
 - `src/api/exchangeApi.ts`
 - `src/stores/exchangeStore.ts`

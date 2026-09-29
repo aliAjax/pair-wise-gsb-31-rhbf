@@ -2,7 +2,7 @@ import type { User, UserDraft } from '@/models/user';
 
 import { storage, STORAGE_KEYS } from '@/utils/storage';
 
-const seedUsers: User[] = [
+export const seedUsers: User[] = [
   {
     id: 'user_me',
     nickname: '青禾',

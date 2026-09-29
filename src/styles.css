@@ -295,6 +295,16 @@ main {
   color: #365f84;
 }
 
+.status-booked {
+  background: color-mix(in oklch, #b77742, transparent 78%);
+  color: #8f5526;
+}
+
+.status-conflict {
+  background: color-mix(in oklch, #b14242, transparent 78%);
+  color: #943434;
+}
+
 .gallery {
   display: grid;
   gap: 10px;
@@ -563,6 +573,40 @@ textarea {
 .exchange-card {
   display: grid;
   gap: 14px;
+}
+
+.conflict-banner,
+.occupancy-panel,
+.item-card__occupancy {
+  border: 1px solid color-mix(in oklch, #b14242, transparent 62%);
+  border-radius: 7px;
+  background: color-mix(in oklch, #b14242, transparent 90%);
+  padding: 10px 12px;
+}
+
+.conflict-banner p,
+.occupancy-panel p {
+  margin: 4px 0 0;
+}
+
+.conflict-banner small,
+.occupancy-panel small {
+  display: block;
+  margin-top: 4px;
+  color: color-mix(in oklch, var(--rs-text), transparent 28%);
+}
+
+.occupancy-panel--free {
+  border-color: var(--rs-border);
+  background: color-mix(in oklch, var(--rs-primary), transparent 90%);
+}
+
+.item-card__occupancy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.82rem;
 }
 
 .exchange-card__items {

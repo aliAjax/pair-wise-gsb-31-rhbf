@@ -13,7 +13,7 @@ export const useItemStore = defineStore('items', {
     items: [] as Item[],
     keyword: '',
     category: '全部',
-    statusFilter: ItemStatus.AVAILABLE as ItemStatus,
+    statusFilter: 'all' as ItemStatus | 'all',
     loading: false,
   }),
   getters: {
@@ -24,7 +24,11 @@ export const useItemStore = defineStore('items', {
           const keywordMatched = `${item.title}${item.description}${item.location}`
             .toLowerCase()
             .includes(state.keyword.toLowerCase());
-          return categoryMatched && keywordMatched && item.status === state.statusFilter;
+          return (
+            categoryMatched &&
+            keywordMatched &&
+            (state.statusFilter === 'all' || item.status === state.statusFilter)
+          );
         }),
         ['created_at'],
         ['desc'],
@@ -64,9 +68,13 @@ export const useItemStore = defineStore('items', {
       return item;
     },
     async offline(itemId: string) {
-      await itemApi.setStatus(itemId, ItemStatus.OFFLINE);
+      const item = await itemApi.setStatus(itemId, ItemStatus.OFFLINE);
       this.items = await itemApi.list();
-      message('物品已下架', 'success');
+      if (item) {
+        message('物品已下架', 'success');
+      } else {
+        message(FORM_MESSAGES.itemOccupied, 'error');
+      }
     },
     assertCanExchange(userId: string) {
       const ownItems = this.availableMyItems(userId);

@@ -3,7 +3,7 @@ import type { Item, ItemDraft } from '@/models/item';
 
 import { storage, STORAGE_KEYS } from '@/utils/storage';
 
-const seedItems: Item[] = [
+export const seedItems: Item[] = [
   {
     id: 'item_camera',
     user_id: 'user_lin',
@@ -13,6 +13,7 @@ const seedItems: Item[] = [
     condition: ItemCondition.GOOD,
     images: [],
     status: ItemStatus.AVAILABLE,
+    version: 1,
     location: '杭州 · 西湖',
     created_at: new Date().toISOString(),
   },
@@ -25,6 +26,7 @@ const seedItems: Item[] = [
     condition: ItemCondition.LIKE_NEW,
     images: [],
     status: ItemStatus.AVAILABLE,
+    version: 1,
     location: '苏州 · 工业园',
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 26).toISOString(),
   },
@@ -37,6 +39,7 @@ const seedItems: Item[] = [
     condition: ItemCondition.GOOD,
     images: [],
     status: ItemStatus.AVAILABLE,
+    version: 1,
     location: '上海 · 徐汇',
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
   },
@@ -49,6 +52,7 @@ const seedItems: Item[] = [
     condition: ItemCondition.LIKE_NEW,
     images: [],
     status: ItemStatus.EXCHANGED,
+    version: 1,
     location: '杭州 · 西湖',
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 90).toISOString(),
   },
@@ -58,8 +62,15 @@ export const itemApi = {
   async list(): Promise<Item[]> {
     const items = await storage.get<Item[]>(STORAGE_KEYS.items, []);
     if (items.length) return items;
-    await storage.set(STORAGE_KEYS.items, seedItems);
-    return seedItems;
+    return storage.transaction<Item[]>(async (tx) => {
+      const current = await tx.get<Item[]>(STORAGE_KEYS.items, []);
+      if (current.length) {
+        tx.result(current);
+        return;
+      }
+      tx.set(STORAGE_KEYS.items, seedItems);
+      tx.result(seedItems);
+    }) as Promise<Item[]>;
   },
 
   async detail(id: string): Promise<Item | undefined> {
@@ -68,30 +79,68 @@ export const itemApi = {
   },
 
   async create(draft: ItemDraft): Promise<Item> {
-    const items = await this.list();
-    const nextItem: Item = {
-      ...draft,
-      id: storage.createId('item'),
-      status: draft.status ?? ItemStatus.AVAILABLE,
-      created_at: new Date().toISOString(),
-    };
-    await storage.set(STORAGE_KEYS.items, [nextItem, ...items]);
-    return nextItem;
+    return storage.transaction<Item>(async (tx) => {
+      const items = await tx.get<Item[]>(STORAGE_KEYS.items, []);
+      const nextItem: Item = {
+        ...draft,
+        id: storage.createId('item'),
+        status: draft.status ?? ItemStatus.AVAILABLE,
+        occupied_by_exchange_id: undefined,
+        version: 1,
+        created_at: new Date().toISOString(),
+      };
+      tx.set(STORAGE_KEYS.items, [nextItem, ...items]);
+      tx.result(nextItem);
+    }) as Promise<Item>;
   },
 
   async update(id: string, patch: Partial<Item>): Promise<Item> {
-    const items = await this.list();
-    const current = items.find((item) => item.id === id);
-    if (!current) throw new Error('物品不存在');
-    const nextItem = { ...current, ...patch };
-    await storage.set(
-      STORAGE_KEYS.items,
-      items.map((item) => (item.id === id ? nextItem : item)),
-    );
-    return nextItem;
+    return storage.transaction<Item>(async (tx) => {
+      const items = await tx.get<Item[]>(STORAGE_KEYS.items, []);
+      const current = items.find((item) => item.id === id);
+      if (!current) throw new Error('物品不存在');
+      const nextItem: Item = {
+        ...current,
+        ...patch,
+        version: Math.max(current.version ?? 1, patch.version ?? 0) + 1,
+      };
+      tx.set(
+        STORAGE_KEYS.items,
+        items.map((item) => (item.id === id ? nextItem : item)),
+      );
+      tx.result(nextItem);
+    }) as Promise<Item>;
   },
 
-  async setStatus(id: string, status: ItemStatus): Promise<Item> {
-    return this.update(id, { status });
+  async setStatus(
+    id: string,
+    status: ItemStatus,
+    expectedVersion?: number,
+  ): Promise<Item | null> {
+    return storage.transaction<Item | null>(async (tx) => {
+      const items = await tx.get<Item[]>(STORAGE_KEYS.items, []);
+      const current = items.find((item) => item.id === id);
+      if (!current) throw new Error('物品不存在');
+      if (typeof expectedVersion === 'number' && current.version !== expectedVersion) {
+        tx.result(null);
+        return;
+      }
+      if (status === ItemStatus.OFFLINE && current.occupied_by_exchange_id) {
+        tx.result(null);
+        return;
+      }
+      const nextItem: Item = {
+        ...current,
+        status,
+        version: current.version + 1,
+        occupied_by_exchange_id:
+          status === ItemStatus.AVAILABLE ? undefined : current.occupied_by_exchange_id,
+      };
+      tx.set(
+        STORAGE_KEYS.items,
+        items.map((item) => (item.id === id ? nextItem : item)),
+      );
+      tx.result(nextItem);
+    }) as Promise<Item | null>;
   },
 };

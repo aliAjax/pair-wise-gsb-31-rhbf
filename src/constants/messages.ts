@@ -14,6 +14,10 @@ export const FORM_MESSAGES = {
   requiredPhone: '请填写联系方式',
   imageLimit: '最多上传 4 张图片',
   exchangeNeedOwnItem: '请先发布一件可交换物品',
+  itemOccupied: '物品已被一笔有效交换占用',
+  itemVersionChanged: '物品已被其他窗口更新，请刷新后重试',
+  exchangeConflict: '交换与另一笔占用冲突，本记录已标记为失效',
+  exchangeRecovered: '检测到未完成的本机事务，已恢复一致状态',
 };
 
 export const LOG_MESSAGES = {
@@ -24,10 +28,12 @@ export const LOG_MESSAGES = {
 
 export const STATUS_MESSAGE_MAP = {
   [ItemStatus.AVAILABLE]: '这件物品可发起交换',
+  [ItemStatus.BOOKED]: '这件物品已被一笔已同意交换占用',
   [ItemStatus.EXCHANGED]: '这件物品已完成交换',
   [ItemStatus.OFFLINE]: '这件物品已下架',
   [ExchangeStatus.PENDING]: '等待对方确认',
   [ExchangeStatus.ACCEPTED]: '交换已同意，可确认完成',
   [ExchangeStatus.REJECTED]: '交换请求已拒绝',
   [ExchangeStatus.COMPLETED]: '交换流程已完成',
+  [ExchangeStatus.CONFLICTED]: '本次操作与另一笔交换冲突，记录已失效',
 };
