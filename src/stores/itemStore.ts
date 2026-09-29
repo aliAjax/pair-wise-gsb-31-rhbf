@@ -4,8 +4,10 @@ import { orderBy } from 'lodash-es';
 import { itemApi } from '@/api/itemApi';
 import { ItemStatus } from '@/constants/item';
 import { FORM_MESSAGES } from '@/constants/messages';
+import type { Exchange } from '@/models/exchange';
 import type { Item, ItemDraft } from '@/models/item';
 import { message } from '@/utils/message';
+import { findOpenHoldForItem } from '@/utils/occupancy';
 import { validateItemDraft } from '@/utils/validators';
 
 export const useItemStore = defineStore('items', {
@@ -67,6 +69,10 @@ export const useItemStore = defineStore('items', {
       await itemApi.setStatus(itemId, ItemStatus.OFFLINE);
       this.items = await itemApi.list();
       message('物品已下架', 'success');
+    },
+    /** 列表/详情共用：返回占用这件物品的那笔交换 */
+    holdOfItem(item: Item, exchanges: Exchange[]) {
+      return findOpenHoldForItem(exchanges, item.id);
     },
     assertCanExchange(userId: string) {
       const ownItems = this.availableMyItems(userId);

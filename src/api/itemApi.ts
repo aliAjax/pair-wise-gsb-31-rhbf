@@ -1,5 +1,6 @@
 import { ItemCondition, ItemStatus } from '@/constants/item';
 import type { Item, ItemDraft } from '@/models/item';
+import { ensureItemShape } from '@/utils/migration';
 
 import { storage, STORAGE_KEYS } from '@/utils/storage';
 
@@ -13,6 +14,8 @@ const seedItems: Item[] = [
     condition: ItemCondition.GOOD,
     images: [],
     status: ItemStatus.AVAILABLE,
+    version: 1,
+    hold_exchange_id: null,
     location: '杭州 · 西湖',
     created_at: new Date().toISOString(),
   },
@@ -25,6 +28,8 @@ const seedItems: Item[] = [
     condition: ItemCondition.LIKE_NEW,
     images: [],
     status: ItemStatus.AVAILABLE,
+    version: 1,
+    hold_exchange_id: null,
     location: '苏州 · 工业园',
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 26).toISOString(),
   },
@@ -37,6 +42,8 @@ const seedItems: Item[] = [
     condition: ItemCondition.GOOD,
     images: [],
     status: ItemStatus.AVAILABLE,
+    version: 1,
+    hold_exchange_id: null,
     location: '上海 · 徐汇',
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
   },
@@ -49,6 +56,8 @@ const seedItems: Item[] = [
     condition: ItemCondition.LIKE_NEW,
     images: [],
     status: ItemStatus.EXCHANGED,
+    version: 1,
+    hold_exchange_id: null,
     location: '杭州 · 西湖',
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 90).toISOString(),
   },
@@ -57,7 +66,7 @@ const seedItems: Item[] = [
 export const itemApi = {
   async list(): Promise<Item[]> {
     const items = await storage.get<Item[]>(STORAGE_KEYS.items, []);
-    if (items.length) return items;
+    if (items.length) return items.map((item) => ensureItemShape(item));
     await storage.set(STORAGE_KEYS.items, seedItems);
     return seedItems;
   },
@@ -70,9 +79,17 @@ export const itemApi = {
   async create(draft: ItemDraft): Promise<Item> {
     const items = await this.list();
     const nextItem: Item = {
-      ...draft,
+      user_id: draft.user_id,
+      title: draft.title,
+      description: draft.description,
+      category: draft.category,
+      condition: draft.condition,
+      images: [...draft.images],
+      location: draft.location,
       id: storage.createId('item'),
       status: draft.status ?? ItemStatus.AVAILABLE,
+      version: 1,
+      hold_exchange_id: draft.hold_exchange_id ?? null,
       created_at: new Date().toISOString(),
     };
     await storage.set(STORAGE_KEYS.items, [nextItem, ...items]);
@@ -83,7 +100,12 @@ export const itemApi = {
     const items = await this.list();
     const current = items.find((item) => item.id === id);
     if (!current) throw new Error('物品不存在');
-    const nextItem = { ...current, ...patch };
+    // 普通写入同样走乐观锁版本号，状态/占用的事务性改写在 exchangeApi 内完成
+    const nextItem: Item = {
+      ...current,
+      ...patch,
+      version: current.version + 1,
+    };
     await storage.set(
       STORAGE_KEYS.items,
       items.map((item) => (item.id === id ? nextItem : item)),
@@ -92,6 +114,9 @@ export const itemApi = {
   },
 
   async setStatus(id: string, status: ItemStatus): Promise<Item> {
-    return this.update(id, { status });
+    return this.update(id, {
+      status,
+      hold_exchange_id: status === ItemStatus.AVAILABLE ? null : undefined,
+    });
   },
 };

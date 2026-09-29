@@ -295,6 +295,91 @@ main {
   color: #365f84;
 }
 
+.status-booked {
+  background: color-mix(in oklch, #8a5fb0, transparent 78%);
+  color: #6b428e;
+}
+
+.status-conflict {
+  background: color-mix(in oklch, #b04a4a, transparent 76%);
+  color: #923535;
+}
+
+.stat-conflict {
+  color: #923535;
+  font-weight: 700;
+}
+
+.item-card__hold,
+.detail-hold,
+.hold-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #6b428e;
+}
+
+.hold-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #8a5fb0;
+}
+
+.exchange-card__items .is-held strong {
+  color: #6b428e;
+}
+
+.hold-tag {
+  display: block;
+  margin-top: 2px;
+  font-style: normal;
+  font-size: 0.72rem;
+  color: #6b428e;
+}
+
+.conflict-box {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in oklch, #b04a4a, transparent 55%);
+  border-radius: 8px;
+  background: color-mix(in oklch, #b04a4a, transparent 92%);
+  font-size: 0.82rem;
+}
+
+.conflict-box p {
+  margin: 0;
+  color: color-mix(in oklch, var(--rs-text), transparent 15%);
+}
+
+.exchange-card--conflict {
+  border-color: color-mix(in oklch, #b04a4a, transparent 55%);
+}
+
+.detail-conflicts {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.82rem;
+}
+
+.detail-conflicts li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.version-tag {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: color-mix(in oklch, var(--rs-text), transparent 45%);
+}
+
 .gallery {
   display: grid;
   gap: 10px;

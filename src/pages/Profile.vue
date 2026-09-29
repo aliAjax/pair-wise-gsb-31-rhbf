@@ -38,6 +38,7 @@
         <div class="stats-row">
           <span>发布 {{ myItems.length }}</span>
           <span>可交换 {{ availableCount }}</span>
+          <span>占用中 {{ bookedCount }}</span>
           <span>信用 {{ currentUser.credit_score }}</span>
         </div>
       </div>
@@ -101,6 +102,7 @@ watch(
 
 const myItems = computed(() => (currentUser.value ? itemStore.myItems(currentUser.value.id) : []));
 const availableCount = computed(() => myItems.value.filter((item) => item.status === ItemStatus.AVAILABLE).length);
+const bookedCount = computed(() => myItems.value.filter((item) => item.status === ItemStatus.BOOKED).length);
 
 const save = async () => {
   await updateProfile({ ...form });

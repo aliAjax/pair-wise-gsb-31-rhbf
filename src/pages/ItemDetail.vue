@@ -9,9 +9,23 @@
           <span class="status-pill" :class="statusToneClass(item.status)">
             {{ formatItemStatus(item.status) }}
           </span>
+          <small class="version-tag">v{{ item.version }}</small>
         </div>
         <h1>{{ item.title }}</h1>
         <p>{{ item.description }}</p>
+
+        <div v-if="holdExchange" class="detail-hold">
+          <strong>占用对象</strong>
+          <span>{{ holdSummary }}</span>
+          <RouterLink class="text-link" to="/exchanges">查看这笔交换</RouterLink>
+        </div>
+        <ul v-if="relatedConflicts.length" class="detail-conflicts">
+          <li v-for="conflict in relatedConflicts" :key="conflict.id">
+            <span class="status-pill status-conflict">冲突</span>
+            <span>{{ formatConflictResult(conflict) }}</span>
+          </li>
+        </ul>
+
         <dl class="detail-list">
           <div>
             <dt>成色</dt>
@@ -42,9 +56,15 @@
             留言
             <textarea v-model="messageText" rows="3" />
           </label>
-          <button class="primary-button" type="button" :disabled="item.status !== ItemStatus.AVAILABLE" @click="requestExchange">
-            发起交换
+          <button
+            class="primary-button"
+            type="button"
+            :disabled="item.status !== ItemStatus.AVAILABLE || !!item.hold_exchange_id"
+            @click="requestExchange"
+          >
+            {{ item.status === ItemStatus.AVAILABLE ? '发起交换' : '物品已被占用' }}
           </button>
+          <p v-if="holdExchange" class="form-note">该物品正被一笔有效交换占用，无法再发起新请求</p>
         </div>
         <button v-else-if="item.status === ItemStatus.AVAILABLE" class="secondary-button" type="button" @click="offlineItem">
           下架这件物品
@@ -67,7 +87,7 @@ import { ItemStatus } from '@/constants/item';
 import { useAuthStore } from '@/stores/authStore';
 import { useExchangeStore } from '@/stores/exchangeStore';
 import { useItemStore } from '@/stores/itemStore';
-import { formatCondition, formatDate, formatItemStatus, statusToneClass } from '@/utils/formatters';
+import { formatCondition, formatConflictResult, formatDate, formatItemStatus, statusToneClass } from '@/utils/formatters';
 import { message } from '@/utils/message';
 
 const route = useRoute();
@@ -83,6 +103,26 @@ const ownAvailableItems = computed(() =>
 );
 const selectedItemId = ref('');
 const messageText = ref('我想用这件闲置与你交换，可以沟通时间和地点。');
+
+const holdExchange = computed(() =>
+  item.value
+    ? exchangeStore.exchanges.find((exchange) => exchange.id === item.value?.hold_exchange_id)
+    : undefined,
+);
+const holdSummary = computed(() => {
+  if (!holdExchange.value) return '';
+  const from = authStore.users.find((user) => user.id === holdExchange.value?.from_user_id)?.nickname ?? '未知';
+  const to = authStore.users.find((user) => user.id === holdExchange.value?.to_user_id)?.nickname ?? '未知';
+  return `${from} ↔ ${to} · ${formatDate(holdExchange.value.updated_at)}`;
+});
+const relatedConflicts = computed(() =>
+  item.value
+    ? exchangeStore.exchanges.filter(
+        (exchange) =>
+          exchange.status === ExchangeStatus.CONFLICTED && exchange.conflict?.item_id === item.value?.id,
+      )
+    : [],
+);
 
 const requestExchange = async () => {
   if (!authStore.currentUser || !item.value || !owner.value) return;

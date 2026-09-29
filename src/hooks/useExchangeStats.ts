@@ -10,5 +10,6 @@ export const useExchangeStats = (exchanges: () => Exchange[]) => {
     accepted: exchanges().filter((item) => item.status === ExchangeStatus.ACCEPTED).length,
     rejected: exchanges().filter((item) => item.status === ExchangeStatus.REJECTED).length,
     completed: exchanges().filter((item) => item.status === ExchangeStatus.COMPLETED).length,
+    conflicted: exchanges().filter((item) => item.status === ExchangeStatus.CONFLICTED).length,
   }));
 };

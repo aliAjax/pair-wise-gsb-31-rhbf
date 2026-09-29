@@ -12,6 +12,7 @@
       <span>待确认 {{ stats.pending }}</span>
       <span>已同意 {{ stats.accepted }}</span>
       <span>已完成 {{ stats.completed }}</span>
+      <span v-if="stats.conflicted" class="stat-conflict">冲突 {{ stats.conflicted }}</span>
     </div>
 
     <div class="segmented">
@@ -32,6 +33,7 @@
         :exchange="exchange"
         :items="itemStore.items"
         :users="authStore.users"
+        :exchanges="exchangeStore.exchanges"
         @accept="exchangeStore.accept"
         @reject="exchangeStore.reject"
         @complete="completeExchange"
@@ -75,7 +77,6 @@ const stats = useExchangeStats(() => exchangeStore.exchanges);
 
 const completeExchange = async (id: string) => {
   await exchangeStore.complete(id);
-  itemStore.items = itemStore.items.map((item) => item);
 };
 
 void ExchangeStatus.PENDING;

@@ -8,6 +8,10 @@
       </div>
       <h3>{{ item.title }}</h3>
       <p>{{ item.description }}</p>
+      <div v-if="holdText" class="item-card__hold">
+        <span class="hold-dot" />
+        {{ holdText }}
+      </div>
       <div class="item-card__meta">
         <span>{{ item.location }}</span>
         <span>{{ formatCondition(item.condition) }}</span>
@@ -21,14 +25,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, inject } from 'vue';
 import { RouterLink } from 'vue-router';
 
+import { ItemStatus } from '@/constants/item';
 import type { Item } from '@/models/item';
 import type { User } from '@/models/user';
 import { useAuthStore } from '@/stores/authStore';
 import { useThemeStore } from '@/stores/themeStore';
-import { formatCondition, formatItemStatus, statusToneClass } from '@/utils/formatters';
+import { formatCondition, formatHoldTarget, formatItemStatus, statusToneClass } from '@/utils/formatters';
+import { EXCHANGES_KEY, NICKNAME_KEY } from '@/types/injection';
 
 import ItemImageGallery from './ItemImageGallery.vue';
 
@@ -39,5 +45,12 @@ const props = defineProps<{
 
 const authStore = useAuthStore();
 useThemeStore();
+const exchangesRef = inject(EXCHANGES_KEY, undefined);
+const nicknameOf = inject(NICKNAME_KEY, () => undefined);
 const isMine = computed(() => authStore.currentUser?.id === props.item.user_id);
+
+const holdText = computed(() => {
+  if (props.item.status === ItemStatus.AVAILABLE || !props.item.hold_exchange_id) return '';
+  return formatHoldTarget(props.item, exchangesRef?.value ?? [], nicknameOf);
+});
 </script>
